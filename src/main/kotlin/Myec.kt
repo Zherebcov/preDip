@@ -41,11 +41,11 @@ import kotlin.reflect.KFunction1
 object MyMnist {
 
     val log = LoggerFactory.getLogger(MyMnist::class.java)
-    val basePath = "C:/jktu/project/NIR/Dataset/symbols/"
+    val basePath = "D:\\Jktu\\Datasets\\symbols"
     val height = 25
     val width = 20
     val channels = 1 // single channel for grayscale images
-    val outputNum = 21 // 10 digits classification
+    val outputNum = 22 // 10 digits classification
     val batchSize = 54
     val nEpochs = 5
     val seed = 1234
