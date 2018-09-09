@@ -40,14 +40,14 @@ import kotlin.reflect.KFunction1
  */
 object MyMnist {
 
-    val log = LoggerFactory.getLogger(MyMnist::class.java)
-    val basePath = "D:\\Jktu\\Datasets\\symbols"
-    val height = 25
-    val width = 20
+    val log = LoggerFactory.getLogger(this::class.java)
+    val basePath = System.getenv("SYMBOL")
+    val height = 16
+    val width = 16
     val channels = 1 // single channel for grayscale images
-    val outputNum = 22 // 10 digits classification
+    val outputNum = 21 // 10 digits classification
     val batchSize = 54
-    val nEpochs = 5
+    val nEpochs = 3
     val seed = 1234
 
 
@@ -92,6 +92,7 @@ object MyMnist {
 
         // vectorization of train data
         val trainData = File("$basePath")
+        println(basePath)
         val trainSplit = FileSplit(trainData, NativeImageLoader.ALLOWED_FORMATS, randNumGen)
         val labelMaker = ParentPathLabelGenerator() // parent path as the image label
         val trainRR = ImageRecordReader(height.toLong(), width.toLong(), channels.toLong(), labelMaker)
