@@ -5,10 +5,9 @@ import java.util.Random
 import org.datavec.api.io.labels.ParentPathLabelGenerator
 import org.datavec.api.split.FileSplit
 import org.datavec.image.loader.NativeImageLoader
-import org.datavec.image.recordreader.BaseImageRecordReader
 import org.datavec.image.recordreader.ImageRecordReader
 import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator
-import zhe.lgtu.dip.DataUtilities
+import org.deeplearning4j.eval.Evaluation
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration
 import org.deeplearning4j.nn.conf.inputs.InputType
 import org.deeplearning4j.nn.conf.layers.ConvolutionLayer
@@ -20,6 +19,7 @@ import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener
 import org.deeplearning4j.util.ModelSerializer
 import org.nd4j.linalg.activations.Activation
+import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.dataset.api.preprocessor.ImagePreProcessingScaler
 import org.nd4j.linalg.learning.config.Nesterovs
 import org.nd4j.linalg.lossfunctions.LossFunctions
@@ -27,7 +27,6 @@ import org.nd4j.linalg.schedule.MapSchedule
 import org.nd4j.linalg.schedule.ScheduleType
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KFunction0
-import kotlin.reflect.KFunction1
 
 /**
  * Handwritten digits image classification on MNIST dataset (99% accuracy).
@@ -46,7 +45,7 @@ object MyMnist {
     val width = 16
     val channels = 1 // single channel for grayscale images
     val outputNum = 21 // 10 digits classification
-    val batchSize = 54
+    val batchSize = 216
     val nEpochs = 3
     val seed = 1234
 
@@ -58,21 +57,7 @@ object MyMnist {
 
         val (trainIter, testIter) = NewTimed("Create DataSet for", MyMnist::CreateDataSet)
         val net = NewTimed("Create Network for", MyMnist::CreateNetwork)
-
-        // evaluation while training (the score should go down)
-        (0 until nEpochs).forEach {
-            NewTimed("Completed epoch {} ms") { net.fit(trainIter) }
-            NewTimed("Completed evaluation {} ms") {
-                val eval = net.evaluate(testIter)
-                log.info(eval.stats(false)+'\n'+eval.confusionMatrix())
-            }
-            trainIter.reset()
-            trainIter.labels
-            testIter.reset()
-        }
-
-        NewTimed("Save model"){ModelSerializer.
-                writeModel(net, File("$basePath/minist-model.zip"), true)}
+        Fit(trainIter, testIter,net)
     }
 
     @JvmStatic
@@ -86,13 +71,14 @@ object MyMnist {
     }
 
 
+
+
     @JvmStatic
-    inline fun CreateDataSet(): Pair<RecordReaderDataSetIterator, RecordReaderDataSetIterator> {
+    inline fun CreateDataSet(): Pair<MutableList<DataSet>, DataSet> {
         val randNumGen = Random(seed.toLong())
 
         // vectorization of train data
         val trainData = File("$basePath")
-        println(basePath)
         val trainSplit = FileSplit(trainData, NativeImageLoader.ALLOWED_FORMATS, randNumGen)
         val labelMaker = ParentPathLabelGenerator() // parent path as the image label
         val trainRR = ImageRecordReader(height.toLong(), width.toLong(), channels.toLong(), labelMaker)
@@ -103,15 +89,22 @@ object MyMnist {
         scaler.fit(trainIter)
         trainIter.preProcessor = scaler
 
-        // vectorization of test data
-        val testData = File("$basePath")
-        val testSplit = FileSplit(testData, NativeImageLoader.ALLOWED_FORMATS, randNumGen)
-        val testRR = ImageRecordReader(height.toLong(), width.toLong(), channels.toLong(), labelMaker)
-        testRR.initialize(testSplit)
-        val testIter = RecordReaderDataSetIterator(testRR, batchSize, 1, outputNum)
+        val trainSetList : MutableList<DataSet> = mutableListOf()
+        val testSetList : MutableList<DataSet> = mutableListOf()
+        while (trainIter.hasNext()) {
+            val allData = trainIter.next()
 
-        testIter.preProcessor = scaler // same normalization for better results
-        return Pair(trainIter, testIter)
+            allData.shuffle()
+            val testAndTrain = allData.splitTestAndTrain(0.8)
+            trainSetList.add(testAndTrain.train)
+            testSetList.add(testAndTrain.test)
+
+        }
+
+        val trainSet = DataSet.merge(trainSetList)
+        val testSet = DataSet.merge(testSetList)
+
+        return Pair(trainSetList , testSet)
     }
 
     @JvmStatic
@@ -148,7 +141,7 @@ object MyMnist {
                         .stride(2, 2)
                         .build())
                 .layer(4, DenseLayer.Builder().activation(Activation.RELU)
-                        .nOut(500).build())
+                        .nOut(250).build())
                 .layer(5, OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                         .nOut(outputNum)
                         .activation(Activation.SOFTMAX)
@@ -161,6 +154,24 @@ object MyMnist {
         net.setListeners(ScoreIterationListener(20000 / batchSize / 20))
         log.debug("Total num of params: {}", net.numParams())
         return net
+    }
+
+    @JvmStatic
+    fun Fit(trainIter: MutableList<DataSet>, testIter: DataSet, net: MultiLayerNetwork) {
+        (0 until nEpochs).forEach {
+            NewTimed("Completed epoch ") {  trainIter.forEach { net.fit(it)}}
+            NewTimed("Completed evaluation ") {
+
+                val eval = Evaluation (outputNum)
+                val output = net.output(testIter.getFeatures());
+                eval.eval(testIter.getLabels(), output);
+                log.info(eval.stats(false) + '\n' + eval.confusionMatrix())
+            }
+        }
+
+        NewTimed("Save model") {
+            ModelSerializer.writeModel(net, File("$basePath/minist-model.zip"), true)
+        }
     }
 
     inline
