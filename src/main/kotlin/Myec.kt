@@ -41,12 +41,12 @@ object MyMnist {
 
     val log = LoggerFactory.getLogger(this::class.java)
     val basePath = System.getenv("SYMBOL")
-    val height = 16
-    val width = 16
+    val height = 20
+    val width = 20
     val channels = 1 // single channel for grayscale images
     val outputNum = 21 // 10 digits classification
     val batchSize = 216
-    val nEpochs = 3
+    val nEpochs = 30
     val seed = 1234
 
 
@@ -124,7 +124,7 @@ object MyMnist {
                 .layer(0, ConvolutionLayer.Builder(5, 5)
                         .nIn(channels)
                         .stride(1, 1)
-                        .nOut(20)
+                        .nOut(7)
                         .activation(Activation.IDENTITY)
                         .build())
                 .layer(1, SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
@@ -141,7 +141,7 @@ object MyMnist {
                         .stride(2, 2)
                         .build())
                 .layer(4, DenseLayer.Builder().activation(Activation.RELU)
-                        .nOut(250).build())
+                        .nOut(500).build())
                 .layer(5, OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                         .nOut(outputNum)
                         .activation(Activation.SOFTMAX)
@@ -151,7 +151,7 @@ object MyMnist {
 
         var net = MultiLayerNetwork(conf)
         net.init()
-        net.setListeners(ScoreIterationListener(20000 / batchSize / 20))
+        //net.setListeners(ScoreIterationListener(20000 / batchSize / 20))
         log.debug("Total num of params: {}", net.numParams())
         return net
     }
@@ -159,13 +159,13 @@ object MyMnist {
     @JvmStatic
     fun Fit(trainIter: MutableList<DataSet>, testIter: DataSet, net: MultiLayerNetwork) {
         (0 until nEpochs).forEach {
-            NewTimed("Completed epoch ") {  trainIter.forEach { net.fit(it)}}
-            NewTimed("Completed evaluation ") {
+            NewTimed("Completed epoch ${it+1}") {  trainIter.forEach { net.fit(it)}}
+            NewTimed("Completed evaluation ${it+1}") {
 
                 val eval = Evaluation (outputNum)
                 val output = net.output(testIter.getFeatures());
                 eval.eval(testIter.getLabels(), output);
-                log.info(eval.stats(false) + '\n' + eval.confusionMatrix())
+                log.info(eval.accuracy().toString() /*+ eval.confusionMatrix()*/)
             }
         }
 
