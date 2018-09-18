@@ -16,17 +16,20 @@ import org.nd4j.linalg.schedule.ScheduleType
 import org.slf4j.LoggerFactory
 import java.util.HashMap
 
-class CreateNetwork(seed: Long, channels: Long, outputNum: Int, height: Long, width: Long,convLay: Pair<Int,Int>) {
+
+class CreateNetwork(val seed: Long, val channels: Long,val  outputNum: Int,val  height: Long,val  width: Long,val name:String, val nOut: List<Int>) {
 
     val log = LoggerFactory.getLogger(this::class.java)
-    val net:MultiLayerNetwork
-    init {
+    var net:MultiLayerNetwork? = null
 
-        log.info("Network configuration and training...")
+
+    fun convInp10_2L_3x3(nOut: List<Int>){
+
+        val convLay = Pair(3, 3)
         val lrSchedule = HashMap<Int, Double>()
         lrSchedule[0] = 0.01
-        lrSchedule[600] = 0.005
-        lrSchedule[1000] = 0.001
+        lrSchedule[600] = 0.006
+        lrSchedule[1000] = 0.003
 
         val conf = NeuralNetConfiguration.Builder()
                 .seed(seed)
@@ -37,7 +40,7 @@ class CreateNetwork(seed: Long, channels: Long, outputNum: Int, height: Long, wi
                 .layer(0, ConvolutionLayer.Builder(convLay.first, convLay.second)
                         .nIn(channels)
                         .stride(1, 1)
-                        .nOut(7)
+                        .nOut(nOut[0])
                         .activation(Activation.IDENTITY)
                         .build())
                 .layer(1, SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
@@ -46,7 +49,7 @@ class CreateNetwork(seed: Long, channels: Long, outputNum: Int, height: Long, wi
                         .build())
                 .layer(2, ConvolutionLayer.Builder(convLay.first, convLay.second)
                         .stride(1, 1) // nIn need not specified in later layers
-                        .nOut(50)
+                        .nOut(nOut[1])
                         .activation(Activation.IDENTITY)
                         .build())
                 .layer(3, SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
@@ -54,7 +57,7 @@ class CreateNetwork(seed: Long, channels: Long, outputNum: Int, height: Long, wi
                         .stride(2, 2)
                         .build())
                 .layer(4, DenseLayer.Builder().activation(Activation.RELU)
-                        .nOut(100).build())
+                        .nOut(nOut[2]).build())
                 .layer(5, OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                         .nOut(outputNum)
                         .activation(Activation.SOFTMAX)
@@ -62,9 +65,16 @@ class CreateNetwork(seed: Long, channels: Long, outputNum: Int, height: Long, wi
                 .setInputType(InputType.convolutionalFlat(height, width, channels))
                 .backprop(true).pretrain(false).build()
 
-        net = MultiLayerNetwork(conf)
-        net.init()
+        this.net = MultiLayerNetwork(conf)
+        net!!.init()
         //net.setListeners(ScoreIterationListener(20000 / batchSize / 20))
-        log.debug("Total num of params: {}", net.numParams())
+        //log.debug("Total num of params: {}", net!!.numParams())
+    }
+    init {
+        log.debug("Network configuration and training...")
+        when (name){
+            "convInp10_2L_3x3" -> convInp10_2L_3x3(nOut)
+            else -> IllegalArgumentException("$name is wrong argument to name")
+        }
     }
 }

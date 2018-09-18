@@ -1,24 +1,10 @@
 package zhe.lgtu.dip
 
 import java.io.File
-import java.util.HashMap
 
 import org.deeplearning4j.eval.Evaluation
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration
-import org.deeplearning4j.nn.conf.inputs.InputType
-import org.deeplearning4j.nn.conf.layers.ConvolutionLayer
-import org.deeplearning4j.nn.conf.layers.DenseLayer
-import org.deeplearning4j.nn.conf.layers.OutputLayer
-import org.deeplearning4j.nn.conf.layers.SubsamplingLayer
-import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
-import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.util.ModelSerializer
-import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.dataset.DataSet
-import org.nd4j.linalg.learning.config.Nesterovs
-import org.nd4j.linalg.lossfunctions.LossFunctions
-import org.nd4j.linalg.schedule.MapSchedule
-import org.nd4j.linalg.schedule.ScheduleType
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KFunction0
 
@@ -42,7 +28,6 @@ object MyMnist {
     val batchSize = 108
     val nEpochs = 30
     val seed = 1234
-    val convLay = Pair(3,3)
 
     val timeLearn = listOf<Int>()
     val timeEval = listOf<Int>()
@@ -52,12 +37,15 @@ object MyMnist {
     @JvmStatic
     fun main(args: Array<String>) {
 
-        val mnistDataSet = MnistDataSet(seed.toLong(),basePath,height.toLong(), width.toLong(), channels.toLong(), batchSize, outputNum)
+        val mnistDataSet = MnistDataSet(seed.toLong(), basePath, height.toLong(), width.toLong(), channels.toLong(), batchSize, outputNum)
         val (trainIter, testIter) = mnistDataSet.getTestAndTrain()
-        val net = CreateNetwork(seed.toLong(),channels.toLong(),outputNum,height.toLong(), width.toLong(),convLay).net
-        Fit(trainIter, testIter, net)
-
-
+        (3..10 step 2).forEach {
+            first -> (20..60 step 10).forEach{
+            second -> (50..500 step 50).forEach {
+            free ->
+            val net = CreateNetwork(seed.toLong(), channels.toLong(), outputNum, height.toLong(), width.toLong(), "convInp10_2L_3x3", listOf(first,second,free))
+            net.net?.let { Fit(trainIter, testIter, net) }
+        }} }
     }
 
     @JvmStatic
@@ -71,29 +59,34 @@ object MyMnist {
     }
 
     @JvmStatic
-    fun Fit(trainIter: MutableList<DataSet>, testIter: DataSet, net: MultiLayerNetwork) {
+    fun Fit(trainIter: MutableList<DataSet>, testIter: DataSet, net: CreateNetwork) {
+        var acc = mutableListOf<Double>()
+        val timeLog = Pair(mutableListOf<Long>(), mutableListOf<Long>())
         (0 until nEpochs).forEach {
-            NewTimed("Completed epoch ${it+1}") {  trainIter.forEach { net.fit(it)}}
-            NewTimed("Completed evaluation ${it+1}") {
+            timeLog.first.add(NewTimed("Completed epoch ${it + 1}",false) { trainIter.forEach { net.net!!.fit(it) } })
+            timeLog.second.add(NewTimed("Completed evaluation ${it + 1} ",false) {
 
-                val eval = Evaluation (outputNum)
-                val output = net.output(testIter.getFeatures());
-                eval.eval(testIter.getLabels(), output);
-                log.info(eval.accuracy().toString() /*+ eval.confusionMatrix()*/)
-
-            }
+                val eval = Evaluation(outputNum)
+                val output = net.net!!.output(testIter.getFeatures())
+                eval.eval(testIter.getLabels(), output)
+                acc.add(eval.accuracy())
+                //log.info(eval.accuracy().toString() /*+ eval.confusionMatrix()*/)
+            })
         }
+        log.info("For model ${net.name} params ${net.net?.numParams()} with parameters ${net.nOut} acc - ${acc.last()} " +
+                "timeTrain - ${timeLog.first.last()} timeEval - ${timeLog.second.last()}")
 
-        NewTimed("Save model") {
-            ModelSerializer.writeModel(net, File("$basePath/minist-model.zip"), true)
-        }
+       /* NewTimed("Save model") {
+            ModelSerializer.writeModel(net.net!!, File("$basePath/minist-model.zip"), true)
+        }*/
     }
 
     inline
-    private fun NewTimed(text: String, function: () -> Unit) {
+    private fun NewTimed(text: String, printed: Boolean = true, function: () -> Unit): Long {
         var start = System.currentTimeMillis()
         function()
         var timeConsumedMillis = System.currentTimeMillis() - start
-        log.info("$text {} ms", timeConsumedMillis)
+        if (printed) log.info("$text {} ms", timeConsumedMillis)
+        return timeConsumedMillis
     }
 }
