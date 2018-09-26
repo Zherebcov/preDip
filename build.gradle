@@ -46,3 +46,13 @@ kotlin {
         coroutines 'enable'
     }
 }
+
+jar {
+    manifest {
+        attributes "Main-Class": "zhe.lgtu.dip.MyMnist"
+    }
+    zip64 true
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}

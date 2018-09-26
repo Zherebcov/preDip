@@ -10,7 +10,7 @@ import org.nd4j.linalg.dataset.api.preprocessor.ImagePreProcessingScaler
 import java.io.File
 import java.util.*
 
-class MnistDataSet(seed: Long, basePath: String, height: Long,width: Long, channels: Long, batchSize: Int, outputNum: Int) {
+class MnistDataSet(seed: Long, basePath: String, CubData: ConfData, outputNum: Int) {
 
     val trainIter:RecordReaderDataSetIterator
 
@@ -19,9 +19,9 @@ class MnistDataSet(seed: Long, basePath: String, height: Long,width: Long, chann
         val trainData = File(basePath)
         val trainSplit = FileSplit(trainData, NativeImageLoader.ALLOWED_FORMATS, randNumGen)
         val labelMaker = ParentPathLabelGenerator()
-        val trainRR = ImageRecordReader(height, width,channels, labelMaker)
+        val trainRR = ImageRecordReader(CubData.height, CubData.width,CubData.channels, labelMaker)
         trainRR.initialize(trainSplit)
-        trainIter = RecordReaderDataSetIterator(trainRR, batchSize, 1,outputNum)
+        trainIter = RecordReaderDataSetIterator(trainRR, CubData.batchSize, 1,outputNum)
         // pixel values from 0-255 to 0-1 (min-max scaling)
         val scaler = ImagePreProcessingScaler(0.0, 1.0)
         scaler.fit(trainIter)

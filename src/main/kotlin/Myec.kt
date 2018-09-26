@@ -1,12 +1,13 @@
 package zhe.lgtu.dip
 
-import java.io.File
-
 import org.deeplearning4j.eval.Evaluation
-import org.deeplearning4j.util.ModelSerializer
 import org.nd4j.linalg.dataset.DataSet
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KFunction0
+import java.io.BufferedWriter
+import java.io.FileWriter
+import java.text.DecimalFormat
+
 
 /**
  * Handwritten digits image classification on MNIST dataset (99% accuracy).
@@ -21,46 +22,41 @@ object MyMnist {
 
     val log = LoggerFactory.getLogger(this::class.java)
     val basePath = System.getenv("SYMBOL")
-    val height = 10
-    val width = 10
-    val channels = 1 // single channel for grayscale images
-    val outputNum = 21 // 10 digits classification
-    val batchSize = 108
+    val CubData = ConfData(height = 12L, width = 10L, channels = 1L, batchSize = 108)
+    val outputNum = 21
     val nEpochs = 30
     val seed = 1234
-
-    val timeLearn = listOf<Int>()
-    val timeEval = listOf<Int>()
 
 
     @Throws(Exception::class)
     @JvmStatic
     fun main(args: Array<String>) {
 
-        val mnistDataSet = MnistDataSet(seed.toLong(), basePath, height.toLong(), width.toLong(), channels.toLong(), batchSize, outputNum)
+        val mnistDataSet = MnistDataSet(seed.toLong(), basePath, CubData, outputNum)
         val (trainIter, testIter) = mnistDataSet.getTestAndTrain()
-        (3..10 step 2).forEach {
-            first -> (20..60 step 10).forEach{
-            second -> (50..500 step 50).forEach {
-            free ->
-            val net = CreateNetwork(seed.toLong(), channels.toLong(), outputNum, height.toLong(), width.toLong(), "convInp10_2L_3x3", listOf(first,second,free))
+        (5..5 step 1).forEach {
+            first -> (listOf(25)).forEach{
+            second -> (21..84 step 21).forEach {
+            three ->
+            val net = CreateNetwork(seed.toLong(), outputNum, CubData, "convInp10V2_2L_5x5", listOf(first,second,three))
             net.net?.let { Fit(trainIter, testIter, net) }
         }} }
     }
 
+
     @JvmStatic
     inline fun <T> NewTimed(text: String, build: KFunction0<T>): T {
 
-        var start = System.currentTimeMillis()
+        val start = System.currentTimeMillis()
         val set = build.invoke()
-        var timeConsumedMillis = System.currentTimeMillis() - start
+        val timeConsumedMillis = System.currentTimeMillis() - start
         log.info("$text {} ms", timeConsumedMillis)
         return set
     }
 
     @JvmStatic
     fun Fit(trainIter: MutableList<DataSet>, testIter: DataSet, net: CreateNetwork) {
-        var acc = mutableListOf<Double>()
+        val acc = mutableListOf<Double>()
         val timeLog = Pair(mutableListOf<Long>(), mutableListOf<Long>())
         (0 until nEpochs).forEach {
             timeLog.first.add(NewTimed("Completed epoch ${it + 1}",false) { trainIter.forEach { net.net!!.fit(it) } })
@@ -73,8 +69,20 @@ object MyMnist {
                 //log.info(eval.accuracy().toString() /*+ eval.confusionMatrix()*/)
             })
         }
-        log.info("For model ${net.name} params ${net.net?.numParams()} with parameters ${net.nOut} acc - ${acc.last()} " +
-                "timeTrain - ${timeLog.first.last()} timeEval - ${timeLog.second.last()}")
+        val formatter = DecimalFormat("#0.00000")
+        //val separator = "|"
+        val textLog ="${net.name} | ${net.net?.numParams()} | ${net.nOut} | " +
+                "${acc.map { formatter.format(it)}.joinToString()} | " +
+                "${timeLog.first.joinToString()} | ${timeLog.second.joinToString()}"
+
+        log.info("${net.name} | ${net.net?.numParams()} | ${net.nOut} | ${formatter.format(acc.last())} | " +
+                "${formatter.format(timeLog.first.average()) } | ${formatter.format(timeLog.second.average()) }")
+
+        val fw = FileWriter("result.txt", true)
+        val bw = BufferedWriter(fw)
+        bw.write(textLog)
+        bw.newLine()
+        bw.close()
 
        /* NewTimed("Save model") {
             ModelSerializer.writeModel(net.net!!, File("$basePath/minist-model.zip"), true)
@@ -83,10 +91,17 @@ object MyMnist {
 
     inline
     private fun NewTimed(text: String, printed: Boolean = true, function: () -> Unit): Long {
-        var start = System.currentTimeMillis()
+        val start = System.currentTimeMillis()
         function()
-        var timeConsumedMillis = System.currentTimeMillis() - start
+        val timeConsumedMillis = System.currentTimeMillis() - start
         if (printed) log.info("$text {} ms", timeConsumedMillis)
         return timeConsumedMillis
     }
 }
+
+
+data class ConfData(
+        val height: Long = 10,
+        val width: Long = 10,
+        val channels: Long = 1, // single channel for grayscale images
+        val batchSize: Int = 108)
