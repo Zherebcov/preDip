@@ -34,13 +34,13 @@ object MyMnist {
 
         val mnistDataSet = MnistDataSet(seed.toLong(), basePath, CubData, outputNum)
         val (trainIter, testIter) = mnistDataSet.getTestAndTrain()
-        (5..5 step 1).forEach {
+        (0..1).forEach {  (12..12 step 1).forEach {
             first -> (listOf(25)).forEach{
-            second -> (21..84 step 21).forEach {
+            second -> (105..105 step 42).forEach {
             three ->
-            val net = CreateNetwork(seed.toLong(), outputNum, CubData, "convInp10V2_2L_5x5", listOf(first,second,three))
+            val net = CreateNetwork(seed.toLong(), outputNum, CubData, "convInp10V2_7x7", listOf(first,second,three))
             net.net?.let { Fit(trainIter, testIter, net) }
-        }} }
+        }} }}
     }
 
 
